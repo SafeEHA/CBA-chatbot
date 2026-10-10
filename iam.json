@@ -1,0 +1,58 @@
+//cloudboosta chat bedrock policy
+{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": [
+          "bedrock:AgenticRetrieveStream",
+          "bedrock:InvokeModelWithResponseStream",
+          "bedrock:GetGuardrail",
+          "bedrock:ApplyGuardrail"
+        ],
+        "Resource": "*"
+      },
+      {
+        "Effect": "Allow",
+        "Action": ["bedrock:Retrieve", "bedrock:GetDocumentContent"],
+        "Resource": "arn:aws:bedrock:REGION:ACCOUNT_ID:knowledge-base/*"
+      }
+    ]
+  }
+
+
+
+// bedrock policy
+
+  {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "KnowledgeBaseAccess",
+        "Effect": "Allow",
+        "Action": [
+          "bedrock:RetrieveAndGenerate",
+          "bedrock:Retrieve"
+        ],
+        "Resource": "arn:aws:bedrock:us-east-1:202951752028:knowledge-base/<Your KB ID>"
+      },
+      {
+        "Sid": "ModelAccess",
+        "Effect": "Allow",
+        "Action": [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream"
+        ],
+        "Resource": [
+          "arn:aws:bedrock:*::foundation-model/*",
+          "arn:aws:bedrock:us-east-1:202951752028:inference-profile/*"
+        ]
+      },
+      {
+        "Sid": "GuardrailAccess",
+        "Effect": "Allow",
+        "Action": "bedrock:ApplyGuardrail",
+        "Resource": "arn:aws:bedrock:us-east-1:202951752028:guardrail/*"
+      }
+    ]
+  }

@@ -1,0 +1,22 @@
+{"question": "How much does the Cloud Computing pathway cost?"}
+
+
+mkdir -p boto3-layer/python 
+cd boto3-layer 
+python3 -m pip install "boto3>=1.43.32" -t python 
+zip -r boto3-layer.zip python
+
+
+
+
+
+
+
+
+
+Key Value
+GUARDRAIL_ID 29ln5em1wp82
+GUARDRAIL_VERSION 1
+KB_ID 5E25QIJO7P
+MODEL_ARN arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0
+WEBHOOK_TOKEN a22813a18d3b07ede9826f7ba80e5c953d6b414775a8219c

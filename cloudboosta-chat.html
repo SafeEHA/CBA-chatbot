@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask CloudBoosta</title>
+<style>
+  :root {
+    --bg: #070b14;
+    --panel: #0e1422;
+    --line: #1f2a40;
+    --text: #e8edf7;
+    --muted: #8d9ab5;
+    --accent: #5cb3ff;
+    --accent-ink: #04111f;
+    --user: #14233d;
+    --err: #ff8f8f;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.55 "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+    display: flex;
+    justify-content: center;
+  }
+  .app {
+    width: 100%;
+    max-width: 760px;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0; font-size: 1.1rem; font-weight: 650; letter-spacing: .01em; }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: .88rem; }
+
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    scroll-behavior: smooth;
+  }
+  .starters { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
+  .starters p { margin: 0 0 4px; color: var(--muted); font-size: .92rem; }
+  .starters button {
+    text-align: left;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font: inherit;
+    cursor: pointer;
+  }
+  .starters button:hover { border-color: var(--accent); }
+
+  .msg { max-width: 92%; }
+  .msg.user {
+    align-self: flex-end;
+    background: var(--user);
+    padding: 10px 14px;
+    border-radius: 14px 14px 4px 14px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .msg.bot { align-self: flex-start; overflow-wrap: anywhere; }
+  .msg.bot p { margin: 0 0 .75em; }
+  .msg.bot p:last-child, .msg.bot ul:last-child { margin-bottom: 0; }
+  .msg.bot h4 { margin: 1em 0 .4em; font-size: 1rem; }
+  .msg.bot ul { margin: 0 0 .75em; padding-left: 1.2em; }
+  .msg.bot a { color: var(--accent); }
+  .msg.bot strong { font-weight: 650; }
+  .msg.error { color: var(--err); }
+  .tw { overflow-x: auto; margin: .5em 0 .9em; }
+  table { border-collapse: collapse; font-size: .9rem; min-width: 100%; }
+  th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--panel); }
+
+  .thinking { color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .dots { display: inline-flex; gap: 4px; }
+  .dots i {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); opacity: .35;
+    animation: pulse 1.1s infinite ease-in-out;
+  }
+  .dots i:nth-child(2) { animation-delay: .15s; }
+  .dots i:nth-child(3) { animation-delay: .3s; }
+  @keyframes pulse { 50% { opacity: 1; } }
+
+  form {
+    border-top: 1px solid var(--line);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  textarea {
+    flex: 1;
+    resize: none;
+    max-height: 140px;
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 11px 13px;
+    font: inherit;
+  }
+  textarea::placeholder { color: var(--muted); }
+  #send {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: 0;
+    border-radius: 10px;
+    padding: 11px 18px;
+    font: inherit;
+    font-weight: 650;
+    cursor: pointer;
+  }
+  #send:disabled { opacity: .5; cursor: default; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  footer { padding: 0 20px 10px; color: var(--muted); font-size: .78rem; }
+  footer a { color: var(--muted); }
+
+  @media (prefers-reduced-motion: reduce) {
+    #log { scroll-behavior: auto; }
+    .dots i { animation: none; opacity: .7; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Ask CloudBoosta</h1>
+    <p>Questions about our Academy pathways, pricing and enrollment.</p>
+  </header>
+
+  <main id="log" aria-live="polite">
+    <div class="starters" id="starters">
+      <p>Try one of these:</p>
+      <button type="button">What pathways does the Academy offer?</button>
+      <button type="button">Which pathway should a complete beginner start with?</button>
+      <button type="button">How much does a single pathway cost?</button>
+    </div>
+  </main>
+
+  <form id="form">
+    <textarea id="input" rows="1" placeholder="Type your question" aria-label="Your question" maxlength="1000"></textarea>
+    <button id="send" type="submit">Send</button>
+  </form>
+  <footer>
+    Answers come from cloudboosta.com. Confirm prices and dates with an
+    <a href="https://wa.me/447592233052" target="_blank" rel="noopener noreferrer">advisor</a> before paying.
+  </footer>
+</div>
+
+<script>
+  // Paste your Lambda Function URL here (Section 10).
+  const FUNCTION_URL = "";
+
+  const log = document.getElementById("log");
+  const form = document.getElementById("form");
+  const input = document.getElementById("input");
+  const sendBtn = document.getElementById("send");
+  const starters = document.getElementById("starters");
+
+  const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const inline = s => esc(s)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  // Small markdown renderer: headings, bold, links, bullet lists, tables, paragraphs.
+  function render(text) {
+    const lines = text.split("\n");
+    let out = "", i = 0;
+    const cells = r => r.trim().replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+    while (i < lines.length) {
+      const l = lines[i];
+      if (/^\s*\|/.test(l) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
+        const rows = [];
+        while (i < lines.length && /^\s*\|/.test(lines[i])) { rows.push(lines[i]); i++; }
+        const head = cells(rows[0]);
+        const body = rows.slice(2).map(cells);
+        out += '<div class="tw"><table><thead><tr>' +
+          head.map(c => "<th>" + inline(c) + "</th>").join("") +
+          "</tr></thead><tbody>" +
+          body.map(r => "<tr>" + r.map(c => "<td>" + inline(c) + "</td>").join("") + "</tr>").join("") +
+          "</tbody></table></div>";
+        continue;
+      }
+      if (/^\s*[-*] /.test(l)) {
+        const items = [];
+        while (i < lines.length && /^\s*[-*] /.test(lines[i])) {
+          items.push(lines[i].replace(/^\s*[-*] /, "")); i++;
+        }
+        out += "<ul>" + items.map(t => "<li>" + inline(t) + "</li>").join("") + "</ul>";
+        continue;
+      }
+      const h = l.match(/^#{1,4}\s+(.*)/);
+      if (h) { out += "<h4>" + inline(h[1]) + "</h4>"; i++; continue; }
+      if (l.trim() === "") { i++; continue; }
+      const para = [lines[i]]; i++;
+      while (i < lines.length && lines[i].trim() !== "" && !/^\s*([-*] |#|\|)/.test(lines[i])) {
+        para.push(lines[i]); i++;
+      }
+      out += "<p>" + para.map(inline).join("<br>") + "</p>";
+    }
+    return out;
+  }
+
+  function addMessage(kind, content, asHtml) {
+    const el = document.createElement("div");
+    el.className = "msg " + kind;
+    if (asHtml) el.innerHTML = content; else el.textContent = content;
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+    return el;
+  }
+
+  async function ask(question) {
+    if (starters) starters.remove();
+    addMessage("user", question);
+
+    const thinking = addMessage("bot thinking",
+      '<span class="dots"><i></i><i></i><i></i></span><span>Looking through our site</span>', true);
+    sendBtn.disabled = true;
+
+    if (FUNCTION_URL.startsWith("PASTE_")) {
+      thinking.remove();
+      addMessage("bot error", "Set FUNCTION_URL at the top of the script to your Lambda Function URL.");
+      sendBtn.disabled = false;
+      return;
+    }
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 60000);
+    try {
+      const res = await fetch(FUNCTION_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },   // avoids a CORS preflight request
+        body: JSON.stringify({ question }),
+        signal: ctrl.signal
+      });
+      const data = await res.json().catch(() => ({}));
+      thinking.remove();
+      if (!res.ok || !data.answer) {
+        addMessage("bot error", data.error || "The assistant could not answer. Try again in a moment.");
+      } else {
+        addMessage("bot", render(data.answer), true);
+      }
+    } catch (err) {
+      thinking.remove();
+      addMessage("bot error", err.name === "AbortError"
+        ? "The request took too long. Try again."
+        : "Could not reach the assistant. Check your connection and try again.");
+    } finally {
+      clearTimeout(timer);
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const q = input.value.trim();
+    if (!q || sendBtn.disabled) return;
+    input.value = "";
+    input.style.height = "auto";
+    ask(q);
+  });
+
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+  });
+  input.addEventListener("input", () => {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 140) + "px";
+  });
+  starters.querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => ask(b.textContent)));
+</script>
+</body>
+</html>

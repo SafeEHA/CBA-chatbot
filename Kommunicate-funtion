@@ -1,0 +1,143 @@
+import os
+import json
+import boto3
+
+REGION = os.environ.get("AWS_REGION", "us-east-1")
+KB_ID = os.environ["KB_ID"]
+GR_ID = os.environ.get("GUARDRAIL_ID")
+GR_VER = os.environ.get("GUARDRAIL_VERSION", "DRAFT")
+WEBHOOK_TOKEN = os.environ.get("WEBHOOK_TOKEN")
+# Model ID, model ARN, or inference profile ID/ARN you have access to.
+MODEL_ARN = os.environ.get("MODEL_ARN")
+
+client = boto3.client("bedrock-agent-runtime", region_name=REGION)
+runtime = boto3.client("bedrock-runtime", region_name=REGION)
+
+INSTRUCTION = (
+    "You are CloudBoosta's assistant, chatting with visitors who are already on the CloudBoosta website. "
+    "Answer only with facts from the information provided. "
+    "Greet people warmly and briefly, and do not mention any link when greeting. "
+    "Do not tell visitors to visit the website. "
+    "Each piece of information may start with its source page URL. "
+    "If the visitor asks for the brochure, wants to enroll, wants to contact the team, "
+    "or you cannot answer their question, share the most relevant link that appears in the information provided. "
+    "Copy links exactly as written. Never invent, guess or change a link. "
+    "If no suitable link appears, say you don't have that detail and ask them to contact the CloudBoosta team. "
+    "Write links as plain URLs, not markdown. "
+    "Keep answers short and simple."
+)
+
+LINKS_QUERY = "brochure download contact us enroll apply link"
+
+
+def reply(status, payload):
+    return {
+        "statusCode": status,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps(payload),
+    }
+
+
+def source_url(item):
+    loc = item.get("location") or {}
+    candidates = [
+        (loc.get("webLocation") or {}).get("url"),
+        (loc.get("s3Location") or {}).get("uri"),
+        (item.get("metadata") or {}).get("x-amz-bedrock-kb-source-uri"),
+    ]
+    for c in candidates:
+        if isinstance(c, str) and c.startswith("http"):
+            return c
+    return None
+
+
+def format_passage(item):
+    text = (item.get("content") or {}).get("text")
+    if not text:
+        return None
+    url = source_url(item)
+    return f"[Source: {url}]\n{text}" if url else text
+
+
+def ask(question):
+    main = client.retrieve(knowledgeBaseId=KB_ID, retrievalQuery={"text": question})
+    links = client.retrieve(knowledgeBaseId=KB_ID, retrievalQuery={"text": LINKS_QUERY})
+
+    results = main.get("retrievalResults", [])
+    if results:
+        print("RESULT KEYS:", sorted(results[0].keys()))  # temporary, remove later
+
+    passages = []
+    for item in results + links.get("retrievalResults", [])[:3]:
+        p = format_passage(item)
+        if p and p not in passages:
+            passages.append(p)
+
+    if not passages:
+        return "I don't have that information. Please contact the CloudBoosta team."
+
+    context = "\n\n".join(passages)
+
+    request = {
+        "modelId": MODEL_ARN,
+        "system": [{"text": INSTRUCTION}],
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"text": f"Information:\n{context}\n\nQuestion:"},
+                {"guardContent": {"text": {"text": f"A visitor on the CloudBoosta training website asks: {question}"}}},            ],
+        }],
+        "inferenceConfig": {"maxTokens": 600, "temperature": 0.2},
+    }
+    if GR_ID:
+        request["guardrailConfig"] = {
+            "guardrailIdentifier": GR_ID,
+            "guardrailVersion": GR_VER,
+            "trace": "enabled",
+        }
+
+    response = runtime.converse(**request)
+
+    if response.get("stopReason") == "guardrail_intervened":
+        print("GUARDRAIL TRACE:", json.dumps(response.get("trace", {}), default=str)[:1500])
+
+    return response["output"]["message"]["content"][0]["text"]
+
+
+def lambda_handler(event, context):
+    print("HANDLER STARTED")
+    body = event
+    if isinstance(event.get("body"), str):
+        try:
+            body = json.loads(event["body"])
+        except ValueError:
+            body = {}
+
+    from_kommunicate = "botId" in body
+
+    if from_kommunicate:
+        headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
+        if not WEBHOOK_TOKEN or headers.get("x-webhook-token") != WEBHOOK_TOKEN:
+            return reply(401, {"error": "Unauthorized"})
+        if body.get("eventName") == "WELCOME":
+            return reply(200, [{"message": "Hi! Ask me about CloudBoosta's Academy pathways, pricing or enrollment."}])
+        if body.get("eventName") == "KOMMUNICATE_MEDIA_EVENT":
+            return reply(200, [{"message": "I can only answer text questions right now."}])
+
+    question = ((body.get("message") if from_kommunicate else body.get("question")) or "").strip()
+
+    def out(text, status=200):
+        if from_kommunicate:
+            return reply(200, [{"message": text}])
+        return reply(status, {"answer": text} if status == 200 else {"error": text})
+
+    if not question:
+        return out("Please include a question.", 400)
+    if len(question) > 1000:
+        return out("Question is too long.", 400)
+
+    try:
+        return out(ask(question))
+    except Exception as ex:
+        print("ERROR:", repr(ex))
+        return out("Something went wrong. Please try again.", 500)
